@@ -1,0 +1,4 @@
+export enum AccountType {
+  INDIVIDUAL = 'INDIVIDUAL',
+  ORGANIZATION = 'ORGANIZATION',
+}
