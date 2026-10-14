@@ -1,4 +1,3 @@
-// dto/verify-bank-account.dto.ts
 import { IsNotEmpty, IsString, Length } from 'class-validator';
 
 export class VerifyBankAccountDto {

@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  api:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME:latest
+    container_name: gada-api
+    restart: always
+    env_file: .env
+    environment:
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:16
+    container_name: gada-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: gada-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:

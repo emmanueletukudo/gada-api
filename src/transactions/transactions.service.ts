@@ -37,8 +37,8 @@ interface InitiateGiftcardDto {
 
 @Injectable()
 export class TransactionsService {
-  private readonly UTILITY_FEE = '100'; // ₦100 fee for cable, water, electricity
-  private readonly GIFTCARD_FEE = '100'; // ₦100 fee for giftcard purchases
+  private readonly UTILITY_FEE = '100';
+  private readonly GIFTCARD_FEE = '100';
 
   constructor(
     @InjectRepository(Transaction)
