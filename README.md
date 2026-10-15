@@ -48,12 +48,12 @@ $ npm run start:prod
 
 ## Test the running API
 
-With Docker Compose running, the API is available from the host at `http://localhost:8080`.
+With Docker Compose running, the API is available from the host at `http://localhost:8080/api/v1`.
 
 ```bash
 curl -i http://localhost:8080/api/v1/status
-curl -i http://localhost:8080/events
-curl -i http://localhost:8080/docs
+curl -i http://localhost:8080/api/v1/events
+curl -i http://localhost:8080/api/v1/docs
 ```
 
 Authenticated endpoints require the bearer token returned by login:

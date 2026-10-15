@@ -86,8 +86,12 @@ jobs:
             ${{ secrets.SERVER_ENV_FILE }}
             EOF
 
+            docker compose -f docker-compose.prod.yml up -d db redis
+
             docker compose -f docker-compose.prod.yml pull api
             docker compose -f docker-compose.prod.yml up -d --no-deps api
+
+            docker compose -f docker-compose.prod.yml run --rm api node dist/database/seeds/run-seed.js
 
             docker image prune -f
             echo "🚀 Production deployment successfully completed!"

@@ -1,15 +1,14 @@
-import { NestFactory } from "@nestjs/core";
-import helmet from "helmet";
-import { join } from "path";
-import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { ValidationPipe } from "@nestjs/common";
-import { NestExpressApplication } from "@nestjs/platform-express";
-import { AppModule } from "./app.module";
-import { json } from "express";
+import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { AppModule } from './app.module';
+import { json } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useStaticAssets(join(process.cwd(), "uploads"), { prefix: "/uploads/" });
+  app.setGlobalPrefix('api/v1');
 
   app.use(
     json({
@@ -21,16 +20,30 @@ async function bootstrap() {
 
   app.use(
     helmet({
-      crossOriginResourcePolicy: { policy: "cross-origin" },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
 
   app.enableCors({
-    origin: [
-      'http://localhost:19006',
-      'http://localhost:3000',
-      'http://localhost:3001',
-    ],
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        'https://pass.gada.africa',
+        'https://gada.africa',
+        'http://localhost:3000',
+        'http://localhost:3001',
+      ];
+
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app')
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS policy'));
+      }
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
 
@@ -43,27 +56,26 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle("Gada API")
+    .setTitle('Gada API')
     .setDescription(
-      "Gada wallet, utility, events, payments, and administration API",
+      'Gada wallet, utility, events, payments, and administration API',
     )
-    .setVersion(process.env.API_VERSION ?? "1.0.0")
-    .addServer(`http://localhost:${process.env.PORT ?? 3000}`, "Local API")
+    .setVersion(process.env.API_VERSION ?? '1.0.0')
     .addBearerAuth(
       {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        description: "Paste the access token returned by /auth/login.",
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Paste the access token returned by /auth/login.',
       },
-      "access-token",
+      'access-token',
     )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("docs", app, document, {
-    customSiteTitle: "Gada API documentation",
-    jsonDocumentUrl: "docs-json",
+  SwaggerModule.setup('docs', app, document, {
+    customSiteTitle: 'Gada API documentation',
+    jsonDocumentUrl: 'docs-json',
     swaggerOptions: {
       persistAuthorization: true,
       displayRequestDuration: true,
@@ -71,7 +83,7 @@ async function bootstrap() {
     },
   });
 
-  await app.listen(Number(process.env.PORT ?? 3000), "0.0.0.0");
+  await app.listen(Number(process.env.PORT ?? 8080), '0.0.0.0');
 }
 
 bootstrap();
