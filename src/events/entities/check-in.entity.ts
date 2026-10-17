@@ -1,6 +1,11 @@
-import { CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Attendee } from './attendee.entity';
 import { User } from '../../users/entities/user.entity';
+
+export enum CheckInMode {
+  IN = 'IN',
+  OUT = 'OUT',
+}
 
 @Entity({ name: 'event_check_ins' })
 export class CheckIn {
@@ -13,6 +18,13 @@ export class CheckIn {
   @ManyToOne(() => User, { nullable: false })
   checkedInBy!: User;
 
+  @Column({
+    type: 'enum',
+    enum: CheckInMode,
+    default: CheckInMode.IN,
+  })
+  mode!: CheckInMode;
+  
   @CreateDateColumn()
   checkedInAt!: Date;
 }

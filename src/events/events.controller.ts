@@ -8,23 +8,17 @@ import {
   Patch,
   Post,
   Query,
-  Req,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
   ApiOperation,
   ApiTags,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import type { CurrentUserPayload } from "../auth/current-user.decorator";
-import { CheckInDto } from "./dto/check-in.dto";
+import { BatchCheckInDto, CheckInDto } from "./dto/check-in.dto";
 import { InitializeCheckoutDto } from "./dto/initialize-checkout.dto";
 import { CreateEventDto } from "./dto/create-event.dto";
 import { ReserveTicketsDto } from "./dto/reserve-tickets.dto";
@@ -87,6 +81,17 @@ export class EventsController {
     return this.eventsService.checkIn(user.userId, dto);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ORGANIZER, UserRole.GATE_AGENT)
+  @Post('events/check-in/batch')
+  @ApiOperation({ summary: 'Process offline-buffered batch check-in logs' })
+  batchCheckIn(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: BatchCheckInDto,
+  ) {
+    return this.eventsService.batchCheckIn(user.userId, dto);
+  }
+
   @Get('agents/events/:eventId/attendees')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ORGANIZER, UserRole.GATE_AGENT)
@@ -111,6 +116,15 @@ export class EventsController {
   @Get('organizer/events/:id/dashboard')
   dashboard(@CurrentUser() user: CurrentUserPayload, @Param('id') id: string) {
     return this.eventsService.dashboard(user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('organizer/dashboard/overview')
+  @ApiOperation({
+    summary: 'Get overarching portfolio analytics across all organizer events',
+  })
+  getOrganizerOverview(@CurrentUser() user: CurrentUserPayload) {
+    return this.eventsService.getOrganizerOverview(user.userId);
   }
 
   @UseGuards(JwtAuthGuard)

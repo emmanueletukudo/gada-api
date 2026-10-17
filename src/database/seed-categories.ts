@@ -16,6 +16,11 @@ export const initialCategories = [
   { slug: 'rave_concert', name: 'Rave & Concert', displayOrder: 8 },
   { slug: 'tech', name: 'Tech', displayOrder: 9 },
   { slug: 'fashion', name: 'Fashion', displayOrder: 10 },
+  {
+    slug: 'trade_fairs',
+    name: 'Exhibitions & Trade Fairs',
+    displayOrder: 11,
+  },
 ];
 
 export async function seedCategories(dataSource: DataSource): Promise<void> {

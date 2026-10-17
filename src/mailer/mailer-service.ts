@@ -40,6 +40,11 @@ export interface SendTicketConfirmationPayload {
   meetingPasscode?: string;
 }
 
+export interface SendWelcomeEmailPayload {
+  email: string;
+  firstName?: string;
+}
+
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
@@ -86,6 +91,66 @@ export class MailerService {
       this.logger.error('Brevo API request failed:', errorDetails);
       throw new InternalServerErrorException('Failed to send email via Brevo.');
     }
+  }
+
+  private getEmailHeaderHtml(): string {
+    return `
+      <tr>
+        <td style="padding-bottom: 24px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+            <tr>
+              <td align="left" style="vertical-align: middle;">
+                <img 
+                  src="https://pub-0d201b6612bc47859f4719a27046564f.r2.dev/uploads/gada_pass.png" 
+                  alt="Gada Pass" 
+                  width="90" 
+                  style="display: block; border: 0; outline: none; text-decoration: none;"
+                />
+              </td>
+              <td align="right" style="vertical-align: middle;">
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="right">
+                  <tr>
+                    <td style="padding-left: 12px; vertical-align: middle;">
+                      <a href="https://instagram.com" target="_blank" style="text-decoration: none; display: block;">
+                        <img 
+                          src="https://pub-0d201b6612bc47859f4719a27046564f.r2.dev/uploads/ig.png" 
+                          alt="Instagram" 
+                          width="20" 
+                          height="20" 
+                          style="display: block; border: 0; outline: none; width: 20px; height: 20px;" 
+                        />
+                      </a>
+                    </td>
+                    <td style="padding-left: 12px; vertical-align: middle;">
+                      <a href="https://x.com" target="_blank" style="text-decoration: none; display: block;">
+                        <img 
+                          src="https://pub-0d201b6612bc47859f4719a27046564f.r2.dev/uploads/x.png" 
+                          alt="X" 
+                          width="20" 
+                          height="20" 
+                          style="display: block; border: 0; outline: none; width: 20px; height: 20px;" 
+                        />
+                      </a>
+                    </td>
+                    <td style="padding-left: 12px; vertical-align: middle;">
+                      <a href="https://facebook.com" target="_blank" style="text-decoration: none; display: block;">
+                        <img 
+                          src="https://pub-0d201b6612bc47859f4719a27046564f.r2.dev/uploads/facebook_logo.png" 
+                          alt="Facebook" 
+                          width="20" 
+                          height="20" 
+                          style="display: block; border: 0; outline: none; width: 20px; height: 20px;" 
+                        />
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    `;
   }
 
   async sendAgentInvite({
@@ -136,57 +201,65 @@ If you were not expecting this invitation, you can safely ignore this email.
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f7f2; padding: 32px 16px;">
             <tr>
               <td align="center">
-                <table role="presentation" width="100%" style="max-width: 520px; background-color: #fffef9; border: 1px solid #dce1d5; border-radius: 24px; padding: 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+                <table role="presentation" width="100%" style="max-width: 560px;">
                   
+                  <!-- HEADER -->
+                  ${this.getEmailHeaderHtml()}
+
+                  <!-- MAIN CONTENT CARD -->
                   <tr>
-                    <td style="padding-bottom: 20px;">
-                      <span style="display: inline-block; background-color: #d6f94a; color: #17211b; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 12px; border-radius: 9999px;">
-                        Gate Access Invitation
-                      </span>
+                    <td>
+                      <table role="presentation" width="100%" style="background-color: #ffffff; border: 1px solid #dce1d5; border-radius: 24px; padding: 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+                        <tr>
+                          <td>
+                            <p style="margin: 0 0 16px 0; font-size: 18px; font-weight: 800; color: #17211b;">${greeting}</p>
+                            <p style="margin: 0 0 24px 0; font-size: 14px; color: #6d766d; line-height: 1.5;">
+                              ${inviterText} to serve as a <strong>Gate Access Operator</strong> for the upcoming event:
+                            </p>
+
+                            <div style="background-color: #f5f5f6; border: 1px solid #dce1d5; border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+                              <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #6d766d;">
+                                Target Event
+                              </p>
+                              <p style="margin: 0; font-size: 18px; font-weight: 800; color: #17211b;">
+                                ${eventName}
+                              </p>
+                              ${
+                                organizerName
+                                  ? `<p style="margin: 6px 0 0 0; font-size: 12px; font-weight: 600; color: #6d766d;">Organized by ${organizerName}</p>`
+                                  : ''
+                              }
+                            </div>
+
+                            <p style="margin: 0 0 24px 0; font-size: 14px; color: #6d766d; line-height: 1.5;">
+                              As an assigned gate access operator, you will be authorized to validate check-in passes, sync terminal logs, and process attendee admissions.
+                            </p>
+
+                            <div style="text-align: center; margin: 32px 0;">
+                              <a href="${url}" target="_blank" style="background-color: #17211b; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 9999px; font-weight: 700; font-size: 14px; display: inline-block;">
+                                Accept Pass &amp; Setup Terminal
+                              </a>
+                            </div>
+
+                            <p style="margin: 0; font-size: 12px; color: #6d766d; text-align: center; word-break: break-all;">
+                              Direct link: <a href="${url}" style="color: #17211b;">${url}</a>
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
                     </td>
                   </tr>
 
+                  <!-- FOOTER SECTION -->
                   <tr>
-                    <td style="font-size: 15px; line-height: 1.6; color: #17211b;">
-                      <p style="margin: 0 0 16px 0; font-size: 16px; font-weight: 700;">${greeting}</p>
-                      <p style="margin: 0 0 24px 0; color: #6d766d;">
-                        ${inviterText} to serve as a <strong>Gate Access Operator</strong> for the upcoming event:
-                      </p>
-
-                      <div style="background-color: #f7f7f2; border: 1px solid #dce1d5; border-radius: 16px; padding: 20px; margin-bottom: 24px;">
-                        <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #6d766d;">
-                          Target Event
-                        </p>
-                        <p style="margin: 0; font-size: 18px; font-weight: 800; color: #17211b;">
-                          ${eventName}
-                        </p>
-                        ${
-                          organizerName
-                            ? `<p style="margin: 6px 0 0 0; font-size: 12px; font-weight: 600; color: #6d766d;">Organized by ${organizerName}</p>`
-                            : ''
-                        }
-                      </div>
-
-                      <p style="margin: 0 0 24px 0; font-size: 14px; color: #6d766d;">
-                        As an assigned gate access operator, you will be authorized to validate check-in passes, sync terminal logs, and process attendee admissions.
-                      </p>
-
-                      <div style="text-align: center; margin: 32px 0;">
-                        <a href="${url}" target="_blank" style="background-color: #17211b; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 9999px; font-weight: 700; font-size: 14px; display: inline-block;">
-                          Accept Pass &amp; Setup Terminal
-                        </a>
-                      </div>
-
-                      <p style="margin: 0; font-size: 12px; color: #6d766d; text-align: center;">
-                        Direct link: <a href="${url}" style="color: #17211b; word-break: break-all;">${url}</a>
-                      </p>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td style="padding-top: 32px; border-top: 1px solid #dce1d5; margin-top: 32px; text-align: center;">
-                      <p style="margin: 0; font-size: 11px; color: #6d766d;">
-                        If you were not expecting this invitation, you can safely ignore this email.
+                    <td align="center" style="padding-top: 32px; font-size: 12px; color: #6d766d; line-height: 1.6;">
+                      <p style="margin: 0 0 8px 0;">&copy; ${new Date().getFullYear()} Gada Pass. All rights reserved.</p>
+                      <p style="margin: 0 0 16px 0;">If you were not expecting this invitation, you can safely ignore this email.</p>
+                      
+                      <p style="margin: 0;">
+                        <a href="#" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Unsubscribe</a> &bull;
+                        <a href="https://pass.gada.africa/privacy" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Privacy Policy</a> &bull;
+                        <a href="https://pass.gada.africa/terms" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Terms of Use</a>
                       </p>
                     </td>
                   </tr>
@@ -202,8 +275,6 @@ If you were not expecting this invitation, you can safely ignore this email.
 
     return this.sendBrevoEmail(payload);
   }
-
-
 
   async sendTicketConfirmation(
     data: SendTicketConfirmationPayload,
@@ -231,7 +302,7 @@ If you were not expecting this invitation, you can safely ignore this email.
       });
 
       qrCardsHtml.push(`
-      <div style="background-color: #fffef9; border: 1px solid #dce1d5; border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center;">
+      <div style="background-color: #f5f5f6; border: 1px solid #dce1d5; border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center;">
         <div style="border-bottom: 1px dashed #dce1d5; padding-bottom: 8px; margin-bottom: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #17211b;">
           Pass #${i + 1} of ${data.tickets.length} &bull; ${t.tierName}
         </div>
@@ -292,38 +363,15 @@ If you were not expecting this invitation, you can safely ignore this email.
               <td align="center">
                 <table role="presentation" width="100%" style="max-width: 560px;">
                   
-                  <!-- HEADER: LOGO & SOCIAL ICONS -->
-                  <tr>
-                    <td style="padding-bottom: 24px;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                        <tr>
-                          <td align="left" style="font-size: 20px; font-weight: 900; color: #17211b; letter-spacing: -0.03em;">
-                            GADA<span style="color: #ff5500;">.</span>
-                          </td>
-                          <td align="right">
-                            <a href="https://instagram.com" target="_blank" style="text-decoration: none; margin-left: 16px; color: #6d766d; font-size: 13px; font-weight: 700;">IG</a>
-                            <a href="https://x.com" target="_blank" style="text-decoration: none; margin-left: 16px; color: #6d766d; font-size: 13px; font-weight: 700;">X</a>
-                            <a href="https://facebook.com" target="_blank" style="text-decoration: none; margin-left: 16px; color: #6d766d; font-size: 13px; font-weight: 700;">FB</a>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-
-                  <!-- DIVIDER -->
-                  <tr>
-                    <td style="border-top: 1px solid #dce1d5; padding-top: 24px;"></td>
-                  </tr>
+                  <!-- HEADER -->
+                  ${this.getEmailHeaderHtml()}
 
                   <!-- MAIN CONTENT CARD -->
                   <tr>
                     <td>
-                      <table role="presentation" width="100%" style="background-color: #fffef9; border: 1px solid #dce1d5; border-radius: 24px; padding: 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+                      <table role="presentation" width="100%" style="background-color: #ffffff; border-radius: 24px; padding: 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
                         <tr>
                           <td>
-                            <span style="display: inline-block; background-color: #d6f94a; color: #17211b; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 12px; border-radius: 9999px; margin-bottom: 20px;">
-                              ${data.quantity} Pass${data.quantity > 1 ? 'es' : ''} Confirmed
-                            </span>
 
                             <p style="margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: #17211b;">
                               Hi ${recipientName},
@@ -333,7 +381,7 @@ If you were not expecting this invitation, you can safely ignore this email.
                             </p>
 
                             <!-- EVENT SUMMARY BOX -->
-                            <div style="background-color: #f7f7f2; border: 1px solid #dce1d5; border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+                            <div style="background-color: #f5f5f6; border: 1px solid #dce1d5; border-radius: 16px; padding: 20px; margin-bottom: 24px;">
                               <p style="margin: 0 0 4px 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #6d766d;">
                                 Event Details
                               </p>
@@ -379,7 +427,7 @@ If you were not expecting this invitation, you can safely ignore this email.
                       
                       <!-- FOOTER LINKS -->
                       <p style="margin: 0;">
-                        <a href="https://gada.africa/unsubscribe" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Unsubscribe</a> &bull;
+                        <a href="#" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Unsubscribe</a> &bull;
                         <a href="https://pass.gada.africa/privacy" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Privacy Policy</a> &bull;
                         <a href="https://pass.gada.africa/terms" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Terms of Use</a>
                       </p>
@@ -422,39 +470,15 @@ If you were not expecting this invitation, you can safely ignore this email.
               <td align="center">
                 <table role="presentation" width="100%" style="max-width: 560px;">
                   
-                  <!-- HEADER: LOGO & SOCIAL ICONS -->
-                  <tr>
-                    <td style="padding-bottom: 24px;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                        <tr>
-                          <td align="left" style="font-size: 20px; font-weight: 900; color: #17211b; letter-spacing: -0.03em;">
-                            GADA<span style="color: #ff5500;">.</span>
-                          </td>
-                          <td align="right">
-                            <a href="https://instagram.com" target="_blank" style="text-decoration: none; margin-left: 16px; color: #6d766d; font-size: 13px; font-weight: 700;">IG</a>
-                            <a href="https://x.com" target="_blank" style="text-decoration: none; margin-left: 16px; color: #6d766d; font-size: 13px; font-weight: 700;">X</a>
-                            <a href="https://facebook.com" target="_blank" style="text-decoration: none; margin-left: 16px; color: #6d766d; font-size: 13px; font-weight: 700;">FB</a>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-
-                  <!-- DIVIDER -->
-                  <tr>
-                    <td style="border-top: 1px solid #dce1d5; padding-top: 24px;"></td>
-                  </tr>
+                  <!-- HEADER -->
+                  ${this.getEmailHeaderHtml()}
 
                   <!-- MAIN CONTENT CARD -->
                   <tr>
                     <td>
-                      <table role="presentation" width="100%" style="background-color: #fffef9; border: 1px solid #dce1d5; border-radius: 24px; padding: 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+                      <table role="presentation" width="100%" style="background-color: #ffffff; border-radius: 24px; padding: 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
                         <tr>
                           <td>
-                            <span style="display: inline-block; background-color: #d6f94a; color: #17211b; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 12px; border-radius: 9999px; margin-bottom: 20px;">
-                              Security Verification
-                            </span>
-
                             <p style="margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: #17211b;">
                               Hi ${name},
                             </p>
@@ -463,7 +487,7 @@ If you were not expecting this invitation, you can safely ignore this email.
                             </p>
 
                             <!-- OTP CODE HIGHLIGHT BOX -->
-                            <div style="background-color: #f7f7f2; border: 1px solid #dce1d5; border-radius: 16px; padding: 24px; margin-bottom: 24px; text-align: center;">
+                            <div style="background-color: #f5f5f6; border: 1px solid #dce1d5; border-radius: 16px; padding: 24px; margin-bottom: 24px; text-align: center;">
                               <p style="margin: 0 0 8px 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #6d766d;">
                                 Your Verification Code
                               </p>
@@ -490,7 +514,7 @@ If you were not expecting this invitation, you can safely ignore this email.
                       
                       <!-- FOOTER LINKS -->
                       <p style="margin: 0;">
-                        <a href="https://gada.africa/unsubscribe" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Unsubscribe</a> &bull;
+                        <a href="#" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Unsubscribe</a> &bull;
                         <a href="https://pass.gada.africa/privacy" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Privacy Policy</a> &bull;
                         <a href="https://pass.gada.africa/terms" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Terms of Use</a>
                       </p>
@@ -504,6 +528,102 @@ If you were not expecting this invitation, you can safely ignore this email.
         </body>
       </html>
       `,
+    };
+
+    return this.sendBrevoEmail(payload);
+  }
+
+  async sendWelcomeEmail({
+    email,
+    firstName,
+  }: SendWelcomeEmailPayload): Promise<any> {
+    const recipientFirstName = firstName ? firstName.trim() : 'Creator';
+
+    const payload = {
+      sender: {
+        name: this.senderName,
+        email: this.senderEmail,
+      },
+      to: [
+        {
+          email,
+          name: recipientFirstName,
+        },
+      ],
+      subject: 'Welcome to Gada Pass!',
+      htmlContent: `
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Welcome to Gada Pass!</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f7f7f2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #17211b;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f7f2; padding: 32px 16px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" style="max-width: 560px;">
+                
+                <!-- HEADER -->
+                ${this.getEmailHeaderHtml()}
+
+                <!-- MAIN CONTENT CARD -->
+                <tr>
+                  <td>
+                    <table role="presentation" width="100%" style="background-color: #ffffff; border: 1px solid #dce1d5; border-radius: 24px; padding: 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+                      <tr>
+                        <td>
+                          <!-- TAG BADGE -->
+                          <h4 style="margin: 0 0 16px 0; font-size: 26px; font-weight: 600; letter-spacing: -0.04em; color: #17211b;">
+                            Hi ${recipientFirstName}<span style="color: #ff5757;">,</span>
+                          </h4>
+
+                          <p style="margin: 0 0 16px 0; font-size: 14px; color: #6d766d; line-height: 1.5;">
+                            Welcome 🥳  to a community of creative minds, making moments worth remembering.
+                          </p>
+
+                          <p style="margin: 0 0 28px 0; font-size: 14px; color: #6d766d; line-height: 1.6;">
+                            Gada Pass is your all-in-one platform for effortlessly creating, promoting, and managing events and guest check-ins. Get started by creating your first event today and take the first step as an event host.
+                          </p>
+
+                          <!-- CALL TO ACTION BUTTON -->
+                          <div style="text-align: left; margin: 32px 0;">
+                            <a href="https://pass.gada.africa" target="_blank" style="background-color: #17211b; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 9999px; font-weight: 800; font-size: 13px; display: inline-block; letter-spacing: -0.01em;">
+                              Create Your First Event
+                            </a>
+                          </div>
+
+                          <p style="margin: 0; font-size: 12px; color: #6d766d; word-break: break-all;">
+                            Direct link: <a href="https://pass.gada.africa" style="color: #17211b; text-decoration: underline;">https://pass.gada.africa</a>
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- FOOTER SECTION -->
+                <tr>
+                  <td align="center" style="padding-top: 32px; font-size: 12px; color: #6d766d; line-height: 1.6;">
+                    <p style="margin: 0 0 8px 0;">&copy; ${new Date().getFullYear()} Gada Pass. All rights reserved.</p>
+                    <p style="margin: 0 0 16px 0;">Find your next experience or host your own on Gada.</p>
+                    
+                    <p style="margin: 0;">
+                      <a href="#" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Unsubscribe</a> &bull;
+                      <a href="https://pass.gada.africa/privacy" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Privacy Policy</a> &bull;
+                      <a href="https://pass.gada.africa/terms" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Terms of Use</a>
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `,
     };
 
     return this.sendBrevoEmail(payload);

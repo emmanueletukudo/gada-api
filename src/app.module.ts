@@ -26,6 +26,7 @@ import { SupportInquiriesModule } from "./support/support-inquiries.module";
 import { AgentOnboardingModule } from "./agents/agent-onboarding.module";
 import { MailerModule } from "./mailer/mailer.module";
 import { CacheModule } from "./radis/cache.module";
+import { TicketsModule } from "./tickets/tickets.module";
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { CacheModule } from "./radis/cache.module";
     SupportInquiriesModule,
     AgentOnboardingModule,
     MailerModule,
+    TicketsModule
   ],
   controllers: [AppController],
   providers: [

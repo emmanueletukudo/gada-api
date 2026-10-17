@@ -5,10 +5,11 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Gender, User } from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { Event } from './event.entity';
 import { TicketTier } from './ticket-tier.entity';
 import { Order } from './order.entity';
+import { Gender } from '../../users/entities/gender-enum';
 
 export enum AttendeeStatus {
   RESERVED = 'RESERVED',

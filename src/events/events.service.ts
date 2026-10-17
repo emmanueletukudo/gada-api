@@ -5,18 +5,17 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, ILike, In, Repository } from 'typeorm';
+import { Between, DataSource, ILike, In, Repository } from 'typeorm';
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
 import { WalletService } from '../wallet/wallet.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { ReserveTicketsDto } from './dto/reserve-tickets.dto';
-import { CheckInDto } from './dto/check-in.dto';
+import { BatchCheckInDto, CheckInDto } from './dto/check-in.dto';
 import { Attendee, AttendeeStatus } from './entities/attendee.entity';
-import { CheckIn } from './entities/check-in.entity';
+import { CheckIn, CheckInMode } from './entities/check-in.entity';
 import { Event, EventStatus, EventType } from './entities/event.entity';
 import { Order, OrderStatus } from './entities/order.entity';
 import { TicketTier } from './entities/ticket-tier.entity';
@@ -32,8 +31,8 @@ import {
   SyncClearanceLevel,
 } from 'src/agents/entities/event-agent.entity';
 import { UserRole } from 'src/users/entities/user-role.enum';
-import { CurrentUserPayload } from 'src/auth/current-user.decorator';
-import { metadata } from 'reflect-metadata/no-conflict';
+
+
 
 @Injectable()
 export class EventsService {
@@ -179,7 +178,6 @@ export class EventsService {
 
     return { reference, ...result.data };
   }
-
 
   async reserve(
     userId: string | undefined,
@@ -455,9 +453,6 @@ export class EventsService {
   }
 
   async create(userId: string, dto: CreateEventDto) {
-    console.log('Create Event called with:', {
-      dto,
-    });
     if (!dto.ticketTiers?.length) {
       throw new ConflictException('At least one ticket tier is required');
     }
@@ -542,6 +537,9 @@ export class EventsService {
           price: (isFreeEvent ? 0 : tier.price).toString(),
           quantity: Number(tier.quantity),
           currency: tier.currency ?? 'NGN',
+          isMultiDay: tier.isMultiDay ?? false,
+          maxScansPerDay: tier.maxScansPerDay ?? 1,
+          validDate: tier.validDate ? new Date(tier.validDate) : undefined,
           salesStart: tier.salesStart ? new Date(tier.salesStart) : undefined,
           salesEnd: tier.salesEnd ? new Date(tier.salesEnd) : undefined,
           event: event,
@@ -728,15 +726,7 @@ export class EventsService {
     return event;
   }
 
-
-
   async update(userId: string, id: string, dto: UpdateEventDto) {
-    console.log('Update Event called with:', {
-      userId,
-      id,
-      dto,
-    });
-
     const event = await this.getOwnedEvent(userId, id);
     if (!event) throw new NotFoundException('Event not found');
 
@@ -858,6 +848,45 @@ export class EventsService {
           await manager.remove(TicketTier, safeTiersToDelete);
         }
 
+        // const tiersToSave = rawTiers.map((tier: any) => {
+        //   const hasValidId = isUUID(tier.id) && existingTierMap.has(tier.id!);
+
+        //   if (hasValidId) {
+        //     const existingTier = existingTierMap.get(tier.id!)!;
+        //     return manager.create(TicketTier, {
+        //       ...existingTier,
+        //       ...tier,
+        //       event: updatedEvent,
+        //       price:
+        //         tier.price !== undefined
+        //           ? String(tier.price)
+        //           : existingTier.price,
+        //       quantity:
+        //         tier.quantity !== undefined
+        //           ? Number(tier.quantity)
+        //           : existingTier.quantity,
+        //       currency: tier.currency ?? existingTier.currency ?? 'NGN',
+        //       salesStart: tier.salesStart
+        //         ? new Date(tier.salesStart)
+        //         : existingTier.salesStart,
+        //       salesEnd: tier.salesEnd
+        //         ? new Date(tier.salesEnd)
+        //         : existingTier.salesEnd,
+        //     });
+        //   }
+
+        //   return manager.create(TicketTier, {
+        //     ...tier,
+        //     id: undefined,
+        //     event: updatedEvent,
+        //     price: String(tier.price ?? 0),
+        //     quantity: Number(tier.quantity ?? 0),
+        //     currency: tier.currency ?? 'NGN',
+        //     salesStart: tier.salesStart ? new Date(tier.salesStart) : undefined,
+        //     salesEnd: tier.salesEnd ? new Date(tier.salesEnd) : undefined,
+        //   });
+        // });
+
         const tiersToSave = rawTiers.map((tier: any) => {
           const hasValidId = isUUID(tier.id) && existingTierMap.has(tier.id!);
 
@@ -876,6 +905,17 @@ export class EventsService {
                   ? Number(tier.quantity)
                   : existingTier.quantity,
               currency: tier.currency ?? existingTier.currency ?? 'NGN',
+              isMultiDay:
+                tier.isMultiDay !== undefined
+                  ? tier.isMultiDay
+                  : existingTier.isMultiDay,
+              maxScansPerDay:
+                tier.maxScansPerDay !== undefined
+                  ? tier.maxScansPerDay
+                  : existingTier.maxScansPerDay,
+              validDate: tier.validDate
+                ? new Date(tier.validDate)
+                : existingTier.validDate,
               salesStart: tier.salesStart
                 ? new Date(tier.salesStart)
                 : existingTier.salesStart,
@@ -892,6 +932,9 @@ export class EventsService {
             price: String(tier.price ?? 0),
             quantity: Number(tier.quantity ?? 0),
             currency: tier.currency ?? 'NGN',
+            isMultiDay: tier.isMultiDay ?? false,
+            maxScansPerDay: tier.maxScansPerDay ?? 1,
+            validDate: tier.validDate ? new Date(tier.validDate) : undefined,
             salesStart: tier.salesStart ? new Date(tier.salesStart) : undefined,
             salesEnd: tier.salesEnd ? new Date(tier.salesEnd) : undefined,
           });
@@ -980,8 +1023,38 @@ export class EventsService {
     return await this.eventRepo.save(event);
   }
 
+  // async dashboard(userId: string, id: string) {
+  //   const event = await this.getOwnedEvent(userId, id);
+  //   const [orders, attendees, checkedIn, ticketTierCount] = await Promise.all([
+  //     this.orderRepo.count({
+  //       where: { event: { id: event.id }, status: OrderStatus.PAID },
+  //     }),
+  //     this.attendeeRepo.count({ where: { event: { id: event.id } } }),
+  //     this.attendeeRepo.count({
+  //       where: { event: { id: event.id }, status: AttendeeStatus.CHECKED_IN },
+  //     }),
+  //     this.tierRepo.count({ where: { event: { id: event.id } } }),
+  //   ]);
+  //   const revenue = await this.orderRepo
+  //     .createQueryBuilder('order')
+  //     .select('COALESCE(SUM(order.organizerAmount), 0)', 'total')
+  //     .where('order.eventId = :eventId', { eventId: event.id })
+  //     .andWhere('order.status = :status', { status: OrderStatus.PAID })
+  //     .getRawOne<{ total: string }>();
+  //   return {
+  //     eventId: event.id,
+  //     orders,
+  //     attendees,
+  //     checkedIn,
+  //     ticketTierCount,
+  //     revenue: revenue?.total ?? '0',
+  //     capacity: event.capacity ?? null,
+  //   };
+  // }
+
   async dashboard(userId: string, id: string) {
     const event = await this.getOwnedEvent(userId, id);
+
     const [orders, attendees, checkedIn, ticketTierCount] = await Promise.all([
       this.orderRepo.count({
         where: { event: { id: event.id }, status: OrderStatus.PAID },
@@ -992,20 +1065,215 @@ export class EventsService {
       }),
       this.tierRepo.count({ where: { event: { id: event.id } } }),
     ]);
-    const revenue = await this.orderRepo
+
+    const revenueRaw = await this.orderRepo
       .createQueryBuilder('order')
-      .select('COALESCE(SUM(order.organizerAmount), 0)', 'total')
+      .select(
+        'COALESCE(SUM(CAST(order.organizerAmount AS DECIMAL)), 0)',
+        'total',
+      )
       .where('order.eventId = :eventId', { eventId: event.id })
       .andWhere('order.status = :status', { status: OrderStatus.PAID })
       .getRawOne<{ total: string }>();
+
+    const tiers = await this.tierRepo.find({
+      where: { event: { id: event.id } },
+      order: { price: 'DESC' },
+    });
+
+    const tierBreakdown = await Promise.all(
+      tiers.map(async (tier) => {
+        const checkedInCount = await this.attendeeRepo.count({
+          where: { tier: { id: tier.id }, status: AttendeeStatus.CHECKED_IN },
+        });
+
+        const tierPrice = Number(tier.price);
+        const tierRevenue = tierPrice * tier.soldCount;
+
+        return {
+          tierId: tier.id,
+          name: tier.name,
+          price: tier.price,
+          currency: tier.currency,
+          quantityAllocated: tier.quantity,
+          soldCount: tier.soldCount,
+          checkedInCount,
+          isMultiDay: tier.isMultiDay ?? false,
+          revenueGenerated: tierRevenue.toFixed(2),
+          occupancyRate:
+            tier.quantity > 0
+              ? Number(((tier.soldCount / tier.quantity) * 100).toFixed(1))
+              : 0,
+        };
+      }),
+    );
+
+    const dailyFootTrafficRaw = await this.checkInRepo
+      .createQueryBuilder('checkIn')
+      .innerJoin('checkIn.attendee', 'attendee')
+      .select("TO_CHAR(checkIn.checkedInAt, 'YYYY-MM-DD')", 'date')
+      .addSelect('COUNT(checkIn.id)', 'totalScans')
+      .addSelect('COUNT(DISTINCT attendee.id)', 'uniqueAttendees')
+      .where('attendee.eventId = :eventId', { eventId: event.id })
+      .groupBy("TO_CHAR(checkIn.checkedInAt, 'YYYY-MM-DD')")
+      .orderBy("TO_CHAR(checkIn.checkedInAt, 'YYYY-MM-DD')", 'ASC')
+      .getRawMany<{
+        date: string;
+        totalScans: string;
+        uniqueAttendees: string;
+      }>();
+
+    const dailyFootTraffic = dailyFootTrafficRaw.map((row) => ({
+      date: row.date,
+      totalScans: Number(row.totalScans),
+      uniqueAttendees: Number(row.uniqueAttendees),
+    }));
+
+    const hourlyVelocityRaw = await this.checkInRepo
+      .createQueryBuilder('checkIn')
+      .innerJoin('checkIn.attendee', 'attendee')
+      .select("TO_CHAR(checkIn.checkedInAt, 'HH24:00')", 'hour')
+      .addSelect('COUNT(checkIn.id)', 'scanCount')
+      .where('attendee.eventId = :eventId', { eventId: event.id })
+      .groupBy("TO_CHAR(checkIn.checkedInAt, 'HH24:00')")
+      .orderBy("TO_CHAR(checkIn.checkedInAt, 'HH24:00')", 'ASC')
+      .getRawMany<{ hour: string; scanCount: string }>();
+
+    const hourlyVelocity = hourlyVelocityRaw.map((row) => ({
+      hour: row.hour,
+      scanCount: Number(row.scanCount),
+    }));
+
+   const agentPerformanceRaw = await this.checkInRepo
+     .createQueryBuilder('checkIn')
+     .innerJoin('checkIn.attendee', 'attendee')
+     .leftJoin('checkIn.checkedInBy', 'operator')
+     .select('operator.id', 'operatorId')
+     .addSelect(
+       "COALESCE(operator.firstName || ' ' || operator.lastName, 'Organizer')",
+       'operatorName',
+     )
+     .addSelect('COUNT(checkIn.id)', 'scansProcessed')
+     .where('attendee.eventId = :eventId', { eventId: event.id })
+     .groupBy('operator.id')
+     .addGroupBy('operator.firstName')
+     .addGroupBy('operator.lastName')
+     .orderBy('COUNT(checkIn.id)', 'DESC')
+     .getRawMany<{
+       operatorId: string;
+       operatorName: string;
+       scansProcessed: string;
+     }>();
+
+    const agentPerformance = agentPerformanceRaw.map((row) => ({
+      operatorId: row.operatorId,
+      operatorName: row.operatorName,
+      scansProcessed: Number(row.scansProcessed),
+    }));
+
     return {
       eventId: event.id,
+      eventName: event.name,
+      eventType: event.eventType,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
       orders,
       attendees,
       checkedIn,
+      checkInRatePercentage:
+        attendees > 0 ? Number(((checkedIn / attendees) * 100).toFixed(1)) : 0,
       ticketTierCount,
-      revenue: revenue?.total ?? '0',
+      revenue: revenueRaw?.total ?? '0.00',
       capacity: event.capacity ?? null,
+      tierBreakdown,
+      dailyFootTraffic,
+      hourlyVelocity,
+      agentPerformance,
+    };
+  }
+
+  async getOrganizerOverview(userId: string) {
+    const events = await this.eventRepo.find({
+      where: { organizerId: userId },
+      select: ['id', 'name', 'status', 'startsAt', 'eventType', 'capacity'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const eventIds = events.map((e) => e.id);
+
+    if (eventIds.length === 0) {
+      return {
+        totalEvents: 0,
+        activeEvents: 0,
+        grossRevenue: '0.00',
+        totalTicketsSold: 0,
+        totalCheckIns: 0,
+        overallTurnoutRate: 0,
+        recentEvents: [],
+        monthlyRevenueGraph: [],
+      };
+    }
+
+    const [ordersCount, totalTicketsSold, totalCheckIns] = await Promise.all([
+      this.orderRepo.count({
+        where: { event: { id: In(eventIds) }, status: OrderStatus.PAID },
+      }),
+      this.attendeeRepo.count({
+        where: { event: { id: In(eventIds) } },
+      }),
+      this.attendeeRepo.count({
+        where: {
+          event: { id: In(eventIds) },
+          status: AttendeeStatus.CHECKED_IN,
+        },
+      }),
+    ]);
+
+    const totalRevenueRaw = await this.orderRepo
+      .createQueryBuilder('order')
+      .select(
+        'COALESCE(SUM(CAST(order.organizerAmount AS DECIMAL)), 0)',
+        'total',
+      )
+      .innerJoin('order.event', 'event')
+      .where('event.organizerId = :userId', { userId })
+      .andWhere('order.status = :status', { status: OrderStatus.PAID })
+      .getRawOne<{ total: string }>();
+
+    const monthlyRevenueRaw = await this.orderRepo
+      .createQueryBuilder('order')
+      .innerJoin('order.event', 'event')
+      .select("TO_CHAR(order.createdAt, 'Mon YYYY')", 'month')
+      .addSelect(
+        'COALESCE(SUM(CAST(order.organizerAmount AS DECIMAL)), 0)',
+        'revenue',
+      )
+      .where('event.organizerId = :userId', { userId })
+      .andWhere('order.status = :status', { status: OrderStatus.PAID })
+      .groupBy("TO_CHAR(order.createdAt, 'Mon YYYY')")
+      .orderBy('MIN(order.createdAt)', 'ASC')
+      .getRawMany<{ month: string; revenue: string }>();
+
+    const grossRevenue = totalRevenueRaw?.total ?? '0.00';
+    const turnoutRate =
+      totalTicketsSold > 0
+        ? Number(((totalCheckIns / totalTicketsSold) * 100).toFixed(1))
+        : 0;
+
+    return {
+      totalEvents: events.length,
+      activeEvents: events.filter((e) => e.status === EventStatus.PUBLISHED)
+        .length,
+      grossRevenue,
+      totalOrders: ordersCount,
+      totalTicketsSold,
+      totalCheckIns,
+      overallTurnoutRate: turnoutRate,
+      recentEvents: events.slice(0, 5),
+      monthlyRevenueGraph: monthlyRevenueRaw.map((row) => ({
+        month: row.month,
+        revenue: Number(row.revenue),
+      })),
     };
   }
 
@@ -1068,6 +1336,136 @@ export class EventsService {
     return { message: 'Order refunded', orderNumber: order.orderNumber };
   }
 
+  // async checkIn(userId: string, dto: CheckInDto) {
+  //   const parsed = this.verifyQrPayload(dto.qrPayload);
+  //   const targetTicketIds =
+  //     parsed.ticketIds || (parsed.ticketId ? [parsed.ticketId] : []);
+
+  //   if (targetTicketIds.length === 0) {
+  //     throw new BadRequestException(
+  //       'No valid ticket IDs found in scan payload',
+  //     );
+  //   }
+
+  //   const whereCondition: any = { ticketId: In(targetTicketIds) };
+  //   if (parsed.eventId) {
+  //     whereCondition.event = { id: parsed.eventId };
+  //   }
+
+  //   const attendees = await this.attendeeRepo.find({
+  //     where: whereCondition,
+  //     relations: ['event', 'event.organizer', 'tier', 'order'],
+  //   });
+
+  //   if (!attendees || attendees.length === 0) {
+  //     throw new BadRequestException(
+  //       'Ticket(s) not found or invalid for this event',
+  //     );
+  //   }
+
+  //   const primaryEvent = attendees[0].event;
+  //   const now = new Date();
+  //   const eventStartDate = new Date(primaryEvent.startsAt);
+  //   const isOrganizer = primaryEvent.organizer.id === userId;
+
+  //   let activeAgent = null;
+  //   if (!isOrganizer) {
+  //     activeAgent = await this.eventAgentRepo.findOne({
+  //       where: { eventId: primaryEvent.id, userId, isActive: true },
+  //     });
+
+  //     if (!activeAgent) {
+  //       throw new ForbiddenException(
+  //         'You are not authorized as a Gate Agent for this event',
+  //       );
+  //     }
+  //   }
+
+  //   const isPrivilegedBypass =
+  //     isOrganizer ||
+  //     (activeAgent &&
+  //       activeAgent.clearanceLevel === SyncClearanceLevel.FULL_SYNC);
+
+  //   const CHECKIN_WINDOW_BUFFER = 12 * 60 * 60 * 1000;
+
+  //   if (
+  //     !isPrivilegedBypass &&
+  //     now.getTime() < eventStartDate.getTime() - CHECKIN_WINDOW_BUFFER
+  //   ) {
+  //     const checkInStartTime = new Date(
+  //       eventStartDate.getTime() - CHECKIN_WINDOW_BUFFER,
+  //     );
+  //     throw new BadRequestException(
+  //       `Check-in opens 12 hours before event start time. Check-in for this event opens on ${checkInStartTime.toLocaleString(
+  //         'en-US',
+  //         {
+  //           dateStyle: 'medium',
+  //           timeStyle: 'short',
+  //         },
+  //       )}.`,
+  //     );
+  //   }
+
+  //   const checkedInResults = [];
+  //   const alreadyCheckedInList = [];
+
+  //   for (const attendee of attendees) {
+  //     if (attendee.status === AttendeeStatus.CHECKED_IN) {
+  //       alreadyCheckedInList.push(attendee);
+  //       continue;
+  //     }
+
+  //     if (attendee.status !== AttendeeStatus.PAID) {
+  //       continue;
+  //     }
+
+  //     attendee.status = AttendeeStatus.CHECKED_IN;
+  //     attendee.checkedInAt = now;
+  //     attendee.checkedInBy = userId;
+
+  //     await this.attendeeRepo.save(attendee);
+
+  //     await this.checkInRepo.save(
+  //       this.checkInRepo.create({
+  //         attendee,
+  //         checkedInBy: { id: userId },
+  //       }),
+  //     );
+
+  //     checkedInResults.push({
+  //       ticketId: attendee.ticketId,
+  //       attendeeName: attendee.guestFullName || 'Guest Attendee',
+  //       tierName: attendee.tier.name,
+  //     });
+  //   }
+
+  //   if (checkedInResults.length === 0) {
+  //     if (alreadyCheckedInList.length > 0) {
+  //       const lastChecked = alreadyCheckedInList[0];
+  //       throw new ConflictException(
+  //         `All ${alreadyCheckedInList.length} ticket(s) in this pass were already checked in at ${new Date(
+  //           lastChecked.checkedInAt!,
+  //         ).toLocaleTimeString()}`,
+  //       );
+  //     }
+  //     throw new ConflictException(
+  //       'All tickets in this pass are invalid, pending, or cancelled',
+  //     );
+  //   }
+
+  //   const primary = checkedInResults[0];
+
+  //   return {
+  //     valid: true,
+  //     totalProcessed: checkedInResults.length,
+  //     ticketId: primary.ticketId,
+  //     attendeeName: primary.attendeeName,
+  //     tierName: primary.tierName,
+  //     orderNumber: attendees[0].order?.orderNumber,
+  //     checkedInAt: now,
+  //     processedTickets: checkedInResults,
+  //   };
+  // }
 
   async checkIn(userId: string, dto: CheckInDto) {
     const parsed = this.verifyQrPayload(dto.qrPayload);
@@ -1099,6 +1497,7 @@ export class EventsService {
     const primaryEvent = attendees[0].event;
     const now = new Date();
     const eventStartDate = new Date(primaryEvent.startsAt);
+    const eventEndDate = new Date(primaryEvent.endsAt);
     const isOrganizer = primaryEvent.organizer.id === userId;
 
     let activeAgent = null;
@@ -1142,18 +1541,62 @@ export class EventsService {
     const checkedInResults = [];
     const alreadyCheckedInList = [];
 
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(now);
+    todayEnd.setHours(23, 59, 59, 999);
+    const todayStr = now.toISOString().split('T')[0];
+
     for (const attendee of attendees) {
-      if (attendee.status === AttendeeStatus.CHECKED_IN) {
-        alreadyCheckedInList.push(attendee);
+      if (
+        attendee.status !== AttendeeStatus.PAID &&
+        attendee.status !== AttendeeStatus.CHECKED_IN
+      ) {
         continue;
       }
 
-      if (attendee.status !== AttendeeStatus.PAID) {
-        continue;
+      const tier = attendee.tier;
+
+      if (tier.isMultiDay) {
+        if (now < eventStartDate || now > eventEndDate) {
+          throw new BadRequestException(
+            `Pass "${tier.name}" is not valid on today's date.`,
+          );
+        }
+      } else if (tier.validDate) {
+        const validDayStr = new Date(tier.validDate)
+          .toISOString()
+          .split('T')[0];
+        if (validDayStr !== todayStr) {
+          throw new BadRequestException(
+            `Pass "${tier.name}" is only valid for ${validDayStr}.`,
+          );
+        }
+      }
+
+      const scansTodayCount = await this.checkInRepo.count({
+        where: {
+          attendee: { id: attendee.id },
+          checkedInAt: Between(todayStart, todayEnd),
+        },
+      });
+
+      const maxScansAllowed = tier.maxScansPerDay || 1;
+      if (!tier.isMultiDay && maxScansAllowed === 1) {
+        if (attendee.status === AttendeeStatus.CHECKED_IN) {
+          alreadyCheckedInList.push(attendee);
+          continue;
+        }
+      } else {
+        if (scansTodayCount >= maxScansAllowed) {
+          throw new ConflictException(
+            `Pass has reached its maximum entry limit of ${maxScansAllowed} scan(s) for today.`,
+          );
+        }
       }
 
       attendee.status = AttendeeStatus.CHECKED_IN;
-      attendee.checkedInAt = now;
+      attendee.checkedInAt = dto.checkedInAt ? new Date(dto.checkedInAt) : now;
       attendee.checkedInBy = userId;
 
       await this.attendeeRepo.save(attendee);
@@ -1161,14 +1604,19 @@ export class EventsService {
       await this.checkInRepo.save(
         this.checkInRepo.create({
           attendee,
+          mode: dto.mode || CheckInMode.IN,
           checkedInBy: { id: userId },
+          checkedInAt: dto.checkedInAt ? new Date(dto.checkedInAt) : now,
         }),
       );
 
       checkedInResults.push({
         ticketId: attendee.ticketId,
         attendeeName: attendee.guestFullName || 'Guest Attendee',
-        tierName: attendee.tier.name,
+        tierName: tier.name,
+        isMultiDay: tier.isMultiDay,
+        scansToday: scansTodayCount + 1,
+        maxScansPerDay: maxScansAllowed,
       });
     }
 
@@ -1195,8 +1643,51 @@ export class EventsService {
       attendeeName: primary.attendeeName,
       tierName: primary.tierName,
       orderNumber: attendees[0].order?.orderNumber,
-      checkedInAt: now,
+      checkedInAt: dto.checkedInAt ? new Date(dto.checkedInAt) : now,
       processedTickets: checkedInResults,
+    };
+  }
+
+  async batchCheckIn(userId: string, dto: BatchCheckInDto) {
+    const { eventId, scans } = dto;
+
+    if (!scans || scans.length === 0) {
+      throw new BadRequestException(
+        'No scan logs provided for batch check-in.',
+      );
+    }
+
+    const results = [];
+
+    for (const item of scans) {
+      try {
+        const res = await this.checkIn(userId, {
+          qrPayload: item.qrPayload,
+          eventId,
+        });
+        results.push({
+          qrPayload: item.qrPayload,
+          status: 'SUCCESS',
+          data: res,
+        });
+      } catch (err: any) {
+        results.push({
+          qrPayload: item.qrPayload,
+          status: 'FAILED',
+          error: err.message || 'Check-in failed',
+        });
+      }
+    }
+
+    const successful = results.filter((r) => r.status === 'SUCCESS').length;
+    const failed = results.filter((r) => r.status === 'FAILED').length;
+
+    return {
+      eventId,
+      totalSubmitted: scans.length,
+      successful,
+      failed,
+      details: results,
     };
   }
 

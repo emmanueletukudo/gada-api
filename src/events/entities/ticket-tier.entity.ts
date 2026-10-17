@@ -32,6 +32,15 @@ export class TicketTier {
 
   @Column({ type: 'int' })
   quantity!: number;
+  
+  @Column({ type: 'boolean', default: false })
+  isMultiDay!: boolean;
+
+  @Column({ type: 'int', default: 1 })
+  maxScansPerDay!: number;
+
+  @Column({ type: 'date', nullable: true })
+  validDate?: Date;
 
   @Column({ type: 'int', default: 0 })
   soldCount!: number;

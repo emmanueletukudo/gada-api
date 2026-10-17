@@ -6,9 +6,10 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Gender, User } from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { Event } from './event.entity';
 import { Attendee } from './attendee.entity';
+import { Gender } from '../../users/entities/gender-enum';
 
 export enum OrderStatus {
   PENDING = 'PENDING',

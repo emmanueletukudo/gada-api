@@ -36,6 +36,19 @@ export class CreateTicketTierDto {
   quantity!: number;
 
   @IsOptional()
+  @IsBoolean()
+  isMultiDay?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxScansPerDay?: number;
+
+  @IsOptional()
+  @IsDateString()
+  validDate?: string;
+
+  @IsOptional()
   @IsDateString()
   salesStart?: string;
 
