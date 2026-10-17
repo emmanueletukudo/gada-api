@@ -126,7 +126,7 @@ export class AgentOnboardingService {
     await this.invitationRepo.save(invitation);
 
     const baseUrl = this.configService.get<string>(
-      'FRONTEND_URL',
+      'FRONTEND_BASE_URL',
       'http://localhost:3000',
     );
     const invitationUrl = `${baseUrl}/accept-invite?token=${rawToken}`;

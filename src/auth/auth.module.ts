@@ -8,19 +8,23 @@ import { VirtualAccountModule } from "../virtual-account/virtual-account.module"
 import { JwtStrategy } from "./jwt.strategy";
 import { RolesGuard } from "./roles.guard";
 import { CacheService } from "../radis/cache.service";
+import { Repository } from "typeorm";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { User } from "../users/entities/user.entity";
 
 @Module({
   imports: [
     UsersModule,
     VirtualAccountModule,
     PassportModule,
+    TypeOrmModule.forFeature([User]),
     JwtModule.register({
       secret: process.env.JWT_SECRET ?? "changeme",
       signOptions: { expiresIn: "1d" },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RolesGuard, CacheService],
+  providers: [AuthService, JwtStrategy, RolesGuard, CacheService, Repository],
   exports: [AuthService],
 })
 export class AuthModule {}

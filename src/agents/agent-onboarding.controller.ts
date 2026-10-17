@@ -14,7 +14,6 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { InviteAgentDto } from './dto/invite-agent.dto';
 import { AcceptInvitationDto } from './dto/accept-invitation.dto';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { User } from '../users/entities/user.entity';
 
 
 type CurrentUserPayload = {

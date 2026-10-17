@@ -15,6 +15,7 @@ import {
 } from "class-validator";
 import { UserRole } from "../entities/user-role.enum";
 import { AccountType } from "../entities/account-type.enum";
+import { AuthProvider } from "../entities/auth-provider-enum";
 
 export enum KycStatus {
   PENDING = "pending",
@@ -70,7 +71,7 @@ export class CreateUserDto {
   @ApiProperty()
   @IsNotEmpty()
   @MinLength(8)
-  password!: string;
+  password?: string;
 
   @ApiProperty()
   @IsOptional()
@@ -88,6 +89,10 @@ export class CreateUserDto {
   @ApiProperty({ enum: AccountType, default: AccountType.INDIVIDUAL })
   @IsEnum(AccountType)
   accountType: AccountType = AccountType.INDIVIDUAL;
+
+  @IsEnum(AuthProvider)
+  @IsOptional()
+  provider?: AuthProvider;
 
   @ApiProperty({ default: false })
   @IsBoolean()

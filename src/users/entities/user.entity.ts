@@ -3,12 +3,9 @@ import { Wallet } from '../../wallet/entities/wallet.entity';
 import { KycStatus } from '../dto/create-user.dto';
 import { UserRole } from './user-role.enum';
 import { AccountType } from './account-type.enum';
+import { AuthProvider } from './auth-provider-enum';
 
-export enum Gender {
-  MALE = 'MALE',
-  FEMALE = 'FEMALE',
-  OTHER = 'OTHER',
-}
+
 
 @Entity({ name: 'users' })
 export class User {
@@ -36,14 +33,21 @@ export class User {
   @Column({ default: false })
   isEmailVerified!: boolean;
 
+  @Column({
+    type: 'enum',
+    enum: AuthProvider,
+    default: AuthProvider.LOCAL,
+  })
+  provider!: AuthProvider;
+  
   @Column()
   kycStatus: KycStatus = KycStatus.PENDING;
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.ATTENDEE })
   role!: UserRole;
 
-  @Column()
-  passwordHash!: string;
+  @Column({nullable: true})
+  passwordHash?: string;
 
   @OneToOne(() => Wallet, (wallet) => wallet.user)
   wallet!: Wallet;
