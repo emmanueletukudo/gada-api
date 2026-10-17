@@ -148,7 +148,6 @@ export class PaystackService {
 
       return accountDetails.data.data;
     } catch (error: any) {
-      console.log('error', error);
       const message =
         error.response?.data?.message ||
         'Could not verify bank account details';
