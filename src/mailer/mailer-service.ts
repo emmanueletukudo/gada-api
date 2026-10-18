@@ -45,6 +45,15 @@ export interface SendWelcomeEmailPayload {
   firstName?: string;
 }
 
+export interface SendEventPublishedPayload {
+  email: string;
+  organizerName: string;
+  eventName: string;
+  eventUrl: string;
+  eventDate: Date | string;
+  eventLocation: string;
+}
+
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
@@ -624,6 +633,135 @@ If you were not expecting this invitation, you can safely ignore this email.
       </body>
     </html>
   `,
+    };
+
+    return this.sendBrevoEmail(payload);
+  }
+
+  async sendEventPublished(data: SendEventPublishedPayload): Promise<any> {
+    const organizerName = data.organizerName
+      ? data.organizerName.trim()
+      : 'Creator';
+
+    const formattedDate = new Date(data.eventDate).toLocaleString('en-US', {
+      dateStyle: 'full',
+      timeStyle: 'short',
+    });
+
+    const payload = {
+      sender: {
+        name: this.senderName,
+        email: this.senderEmail,
+      },
+      to: [
+        {
+          email: data.email,
+          name: organizerName,
+        },
+      ],
+      subject: `Your event "${data.eventName}" is now live! 🎉`,
+      textContent: `
+Hi ${organizerName},
+
+Great news! Your event "${data.eventName}" has been successfully published and is now live on Gada Pass.
+
+Event Details:
+- Event: ${data.eventName}
+- Date: ${formattedDate}
+- Location: ${data.eventLocation}
+
+You can view and share your event page here:
+${data.eventUrl}
+
+Start sharing your link to collect registrations and sell tickets!
+      `.trim(),
+      htmlContent: `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Event Published</title>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f7f7f2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #17211b;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f7f2; padding: 32px 16px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" width="100%" style="max-width: 560px;">
+                  
+                  <!-- HEADER -->
+                  ${this.getEmailHeaderHtml()}
+
+                  <!-- MAIN CONTENT CARD -->
+                  <tr>
+                    <td>
+                      <table role="presentation" width="100%" style="background-color: #ffffff; border: 1px solid #dce1d5; border-radius: 24px; padding: 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);">
+                        <tr>
+                          <td>
+                            <p style="margin: 0 0 16px 0; font-size: 18px; font-weight: 800; color: #17211b;">
+                              Hi ${organizerName},
+                            </p>
+                            <p style="margin: 0 0 24px 0; font-size: 14px; color: #6d766d; line-height: 1.5;">
+                              Great news! Your event <strong>${data.eventName}</strong> has been successfully published and is now live on Gada Pass. 🚀
+                            </p>
+
+                            <!-- EVENT SUMMARY BOX -->
+                            <div style="background-color: #f5f5f6; border: 1px solid #dce1d5; border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+                              <p style="margin: 0 0 4px 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #6d766d;">
+                                Published Event Details
+                              </p>
+                              <p style="margin: 0 0 12px 0; font-size: 16px; font-weight: 800; color: #17211b;">
+                                ${data.eventName}
+                              </p>
+                              <p style="margin: 0 0 4px 0; font-size: 13px; color: #17211b;">
+                                <strong>Date:</strong> ${formattedDate}
+                              </p>
+                              <p style="margin: 0; font-size: 13px; color: #17211b;">
+                                <strong>Location:</strong> ${data.eventLocation}
+                              </p>
+                            </div>
+
+                            <p style="margin: 0 0 24px 0; font-size: 14px; color: #6d766d; line-height: 1.5;">
+                              You can now share your link with attendees to start driving ticket sales and managing check-ins.
+                            </p>
+
+                            <!-- CALL TO ACTION BUTTON -->
+                            <div style="text-align: center; margin: 32px 0;">
+                              <a href="${data.eventUrl}" target="_blank" style="background-color: #17211b; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 9999px; font-weight: 700; font-size: 14px; display: inline-block;">
+                                View Live Event Page
+                              </a>
+                            </div>
+
+                            <p style="margin: 0; font-size: 12px; color: #6d766d; text-align: center; word-break: break-all;">
+                              Direct link: <a href="${data.eventUrl}" style="color: #17211b; text-decoration: underline;">${data.eventUrl}</a>
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- FOOTER SECTION -->
+                  <tr>
+                    <td align="center" style="padding-top: 32px; font-size: 12px; color: #6d766d; line-height: 1.6;">
+                      <p style="margin: 0 0 8px 0;">&copy; ${new Date().getFullYear()} Gada Pass. All rights reserved.</p>
+                      <p style="margin: 0 0 16px 0;">Find your next experience or host your own on Gada.</p>
+                      
+                      <p style="margin: 0;">
+                        <a href="#" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Unsubscribe</a> &bull;
+                        <a href="https://pass.gada.africa/privacy" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Privacy Policy</a> &bull;
+                        <a href="https://pass.gada.africa/terms" target="_blank" style="color: #6d766d; text-decoration: underline; margin: 0 8px;">Terms of Use</a>
+                      </p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+      `,
     };
 
     return this.sendBrevoEmail(payload);

@@ -32,8 +32,6 @@ import {
 } from 'src/agents/entities/event-agent.entity';
 import { UserRole } from 'src/users/entities/user-role.enum';
 
-
-
 @Injectable()
 export class EventsService {
   private readonly qrSecret =
@@ -194,7 +192,9 @@ export class EventsService {
     let resolvedGender = dto.gender;
 
     if (userId) {
-      const userRecord = await this.usersRepo.findOne({ where: { id: userId } });
+      const userRecord = await this.usersRepo.findOne({
+        where: { id: userId },
+      });
       if (userRecord) {
         resolvedEmail = resolvedEmail || userRecord.email;
         resolvedFullName =
@@ -681,7 +681,6 @@ export class EventsService {
       }));
   }
 
-
   async getEventAttendeesForAgent(userId: string, eventId: string) {
     const event = await this.eventRepo.findOne({
       where: { id: eventId },
@@ -707,7 +706,7 @@ export class EventsService {
     });
 
     return attendees.map((a) => {
-      const order = a.order as any; 
+      const order = a.order as any;
       const resolvedName =
         a.guestFullName?.trim() ||
         order?.customerName ||
@@ -1008,7 +1007,25 @@ export class EventsService {
     }
 
     event.status = EventStatus.PUBLISHED;
-    return await this.eventRepo.save(event);
+
+    const publishedEvent = await this.eventRepo.save(event);
+
+    if (publishedEvent.organizer.email) {
+      const frontendUrl =
+        process.env.FRONTEND_URL || 'https://pass.gada.africa';
+
+      await this.mailerService.sendEventPublished({
+        email: publishedEvent.organizer.email,
+        organizerName: publishedEvent.organizer.hostName,
+        eventName: publishedEvent.name,
+        eventUrl: `${frontendUrl}/events/${publishedEvent.slug || publishedEvent.id}`,
+        eventDate: publishedEvent.startsAt,
+        eventLocation:
+          publishedEvent.venue || publishedEvent.city || 'Online Event',
+      });
+    }
+
+    return publishedEvent;
   }
 
   async dashboard(userId: string, id: string) {
