@@ -13,6 +13,7 @@ export class UserDto {
   email!: string;
   phone!: string;
   hostName!: string;
+  logoUrl?: string;
   accountType!: string;
   isEmailVerified: boolean = false;
   kycStatus: KycStatus = KycStatus.PENDING;

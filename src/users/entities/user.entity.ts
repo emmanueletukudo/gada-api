@@ -27,6 +27,9 @@ export class User {
   @Column({ nullable: true })
   hostName!: string;
 
+  @Column({ nullable: true })
+  logoUrl?: string;
+  
   @Column({ type: 'enum', enum: AccountType, default: AccountType.INDIVIDUAL })
   accountType!: AccountType;
 
@@ -39,14 +42,14 @@ export class User {
     default: AuthProvider.LOCAL,
   })
   provider!: AuthProvider;
-  
+
   @Column()
   kycStatus: KycStatus = KycStatus.PENDING;
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.ATTENDEE })
   role!: UserRole;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   passwordHash?: string;
 
   @OneToOne(() => Wallet, (wallet) => wallet.user)

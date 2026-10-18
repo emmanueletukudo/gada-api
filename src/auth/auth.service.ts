@@ -130,6 +130,16 @@ export class AuthService {
         });
         user = await this.usersRepo.save(user);
 
+         try {
+           await this.virtualAccountService.createForUser(user.id, {
+             provider: VirtualAccountProvider.PAYSTACK,
+             bankName: 'Paystack Bank',
+           });
+         } catch (error) {
+           await this.usersService.remove(user.id);
+           throw error;
+         }
+
         this.mailerService
           .sendWelcomeEmail({
             email: user.email,
@@ -230,6 +240,7 @@ export class AuthService {
         hostName: user.hostName,
         accountType: user.accountType,
         isEmailVerified: user.isEmailVerified,
+        logoUrl: user.logoUrl,
         kycStatus: user.kycStatus,
         role: user.role,
         wallet: user.wallet,

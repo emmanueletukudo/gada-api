@@ -37,6 +37,18 @@ export class UsersService {
     });
   }
 
+  async updateLogoUrl(userId: string, logoUrl: string): Promise<User> {
+    const user = await this.usersRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.logoUrl = logoUrl;
+    return await this.usersRepo.save(user);
+  }
 
   async updateUserProfile(userId: string, dto: UpdateProfileDto) {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
@@ -51,7 +63,6 @@ export class UsersService {
       ...(dto.hostName && { hostName: dto.hostName.trim() }),
       ...(dto.phone && { phone: dto.phone.trim() }),
     });
-
 
     const updatedUser = await this.usersRepo.findOne({ where: { id: userId } });
 
