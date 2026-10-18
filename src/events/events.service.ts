@@ -1011,8 +1011,7 @@ export class EventsService {
     const publishedEvent = await this.eventRepo.save(event);
 
     if (publishedEvent.organizer.email) {
-      const frontendUrl =
-        process.env.FRONTEND_URL || 'https://pass.gada.africa';
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
       await this.mailerService.sendEventPublished({
         email: publishedEvent.organizer.email,
