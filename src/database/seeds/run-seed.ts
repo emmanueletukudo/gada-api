@@ -21,6 +21,7 @@ async function runSeed() {
     process.exitCode = 1;
   } finally {
     await app.close();
+    process.exit(0);
   }
 }
 

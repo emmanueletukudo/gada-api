@@ -50,22 +50,25 @@ export class AuthService {
     try {
       await this.virtualAccountService.createForUser(user.id, {
         provider: VirtualAccountProvider.PAYSTACK,
-        bankName: 'Paystack Bank',
+        bankName: 'wema-bank',
       });
-    } catch (error) {
-      await this.usersService.remove(user.id);
-      throw error;
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to create Paystack virtual account for user ${user.id}: ${error?.message}`,
+      );
     }
 
-
-  this.mailerService
-    .sendWelcomeEmail({
-      email: user.email,
-      firstName: user.firstName,
-    })
-    .catch((err) => {
-      this.logger.error(`Failed to send welcome email to ${user.email}:`, err);
-    });
+    await this.mailerService
+      .sendWelcomeEmail({
+        email: user.email,
+        firstName: user.firstName,
+      })
+      .catch((err) => {
+        this.logger.error(
+          `Failed to send welcome email to ${user.email}:`,
+          err,
+        );
+      });
 
     const token = await this.signToken(user.id, user.email, user.role);
     return {
@@ -130,17 +133,18 @@ export class AuthService {
         });
         user = await this.usersRepo.save(user);
 
-         try {
-           await this.virtualAccountService.createForUser(user.id, {
-             provider: VirtualAccountProvider.PAYSTACK,
-             bankName: 'Paystack Bank',
-           });
-         } catch (error) {
-           await this.usersService.remove(user.id);
-           throw error;
-         }
+        try {
+          await this.virtualAccountService.createForUser(user.id, {
+            provider: VirtualAccountProvider.PAYSTACK,
+            bankName: 'wema-bank',
+          });
+        } catch (error: any) {
+          this.logger.error(
+            `Failed to create Paystack virtual account for user ${user.id}: ${error?.message}`,
+          );
+        }
 
-        this.mailerService
+       await this.mailerService
           .sendWelcomeEmail({
             email: user.email,
             firstName: user.firstName,
