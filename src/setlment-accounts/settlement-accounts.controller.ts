@@ -33,8 +33,8 @@ export class SettlementAccountsController {
     return await this.service.getSupportedBanks();
   }
 
-  @Get()
-  async findAll(@Req() req: any) {
+  @Get("organization")
+  async findAllForOrgization(@Req() req: any) {
     return await this.service.findAllForOrganizer(req.user.id);
   }
 
