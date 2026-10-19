@@ -1011,7 +1011,8 @@ export class EventsService {
     const publishedEvent = await this.eventRepo.save(event);
 
     if (publishedEvent.organizer.email) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl =
+        process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
 
       await this.mailerService.sendEventPublished({
         email: publishedEvent.organizer.email,
