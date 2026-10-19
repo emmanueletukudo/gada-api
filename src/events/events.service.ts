@@ -391,6 +391,7 @@ export class EventsService {
           tierPrice: finalOrder.totalAmount,
           currency: finalOrder.currency,
           eventDate: finalOrder.event.startsAt,
+          eventEndDate: finalOrder.event.endsAt,
           isOnline: isOnlineEvent,
           meetingLink: isOnlineEvent ? eventObj.meetingLink : undefined,
           virtualPlatform: isOnlineEvent ? eventObj.virtualPlatform : undefined,

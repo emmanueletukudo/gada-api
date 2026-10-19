@@ -32,6 +32,7 @@ export interface SendTicketConfirmationPayload {
   tierPrice: string;
   currency: string;
   eventDate: Date | string;
+  eventEndDate?: string | Date; 
   eventLocation: string;
   tickets: TicketPassItem[];
   isOnline?: boolean;
@@ -290,6 +291,43 @@ If you were not expecting this invitation, you can safely ignore this email.
   ): Promise<any> {
     const recipientName = data.fullName || 'Valued Guest';
 
+    const startDate = new Date(data.eventDate);
+    const endDate = data.eventEndDate ? new Date(data.eventEndDate) : null;
+
+    const isMultiDay =
+      endDate &&
+      !isNaN(endDate.getTime()) &&
+      (startDate.getFullYear() !== endDate.getFullYear() ||
+        startDate.getMonth() !== endDate.getMonth() ||
+        startDate.getDate() !== endDate.getDate());
+
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    };
+
+    const formattedStart = startDate.toLocaleString('en-US', options);
+    const formattedEnd = endDate
+      ? endDate.toLocaleString('en-US', options)
+      : '';
+
+    let eventDateHtml = formattedStart;
+
+    if (isMultiDay) {
+      eventDateHtml = `
+      <span style="display: block; font-size: 13px; color: #17211b;">
+        <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #ff5500; background: #ff5500/10; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">From</span> ${formattedStart}
+      </span>
+      <span style="display: block; font-size: 13px; color: #17211b; margin-top: 4px;">
+        <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #ff5500; background: #ff5500/10; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">To</span> ${formattedEnd}
+      </span>
+    `;
+    }
+
     const attachments: { name: string; content: string }[] = [];
     const qrCardsHtml: string[] = [];
 
@@ -322,11 +360,6 @@ If you were not expecting this invitation, you can safely ignore this email.
       </div>
     `);
     }
-
-    const formattedDate = new Date(data.eventDate).toLocaleString('en-US', {
-      dateStyle: 'full',
-      timeStyle: 'short',
-    });
 
     const virtualAccessHtml =
       data.isOnline && data.meetingLink
@@ -400,9 +433,12 @@ If you were not expecting this invitation, you can safely ignore this email.
                               <p style="margin: 0 0 4px 0; font-size: 13px; color: #17211b;">
                                 <strong>Tiers:</strong> ${data.tierName}
                               </p>
-                              <p style="margin: 0 0 4px 0; font-size: 13px; color: #17211b;">
-                                <strong>Date:</strong> ${formattedDate}
-                              </p>
+                              <div style="margin: 0 0 8px 0; font-size: 13px; color: #17211b;">
+                                <strong>Date${isMultiDay ? 's' : ''}:</strong> 
+                                <div style="margin-top: 4px;">
+                                  ${eventDateHtml}
+                                </div>
+                              </div>
                               <p style="margin: 0 0 4px 0; font-size: 13px; color: #17211b;">
                                 <strong>Location:</strong> ${data.eventLocation}
                               </p>
@@ -449,12 +485,13 @@ If you were not expecting this invitation, you can safely ignore this email.
           </table>
         </body>
       </html>
-      `,
+    `,
     };
 
     return this.sendBrevoEmail(payload);
   }
 
+  
   async sendOtpEmail(
     email: string,
     otp: string,
