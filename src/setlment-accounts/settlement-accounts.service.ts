@@ -82,6 +82,8 @@ export class SettlementAccountsService {
     user: CurrentUserPayload,
     dto: UpdateSettlementAccountDto,
   ): Promise<SettlementAccount> {
+    this.assertOrganizerId(user?.userId);
+
     const account = await this.findOne(id, user.userId);
 
     if (dto.isDefault && !account.isDefault) {
@@ -151,6 +153,7 @@ export class SettlementAccountsService {
   }
 
   async findAllForOrganizer(organizerId: string): Promise<SettlementAccount[]> {
+     this.assertOrganizerId(organizerId);
     return await this.settlementRepo.find({
       where: { organizerId, isActive: true },
       order: { isDefault: 'DESC', createdAt: 'DESC' },
@@ -158,6 +161,7 @@ export class SettlementAccountsService {
   }
 
   async findOne(id: string, organizerId: string): Promise<SettlementAccount> {
+     this.assertOrganizerId(organizerId);
     const account = await this.settlementRepo.findOne({
       where: { id, organizerId, isActive: true },
     });
@@ -170,8 +174,19 @@ export class SettlementAccountsService {
   }
 
   async remove(id: string, organizerId: string): Promise<void> {
+     this.assertOrganizerId(organizerId);
     const account = await this.findOne(id, organizerId);
     account.isActive = false;
     await this.settlementRepo.save(account);
+  }
+
+  private assertOrganizerId(
+    organizerId?: string,
+  ): asserts organizerId is string {
+    if (!organizerId) {
+      throw new BadRequestException(
+        'User identification missing from request.',
+      );
+    }
   }
 }
