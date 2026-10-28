@@ -20,6 +20,8 @@ import { User } from '../users/entities/user.entity';
 import { EventCategory } from './entities/event-category.entity';
 import { EventCategoriesController } from './event-categories.controller';
 import { EventCategoriesService } from './event-categories.service';
+import { OrganizerAnalyticsController } from './organizer-analytics.controller';
+import { OrganizerAnalyticsService } from './organizer-analytics.service';
 
 @Module({
   imports: [
@@ -33,7 +35,7 @@ import { EventCategoriesService } from './event-categories.service';
       Attendee,
       CheckIn,
       User,
-      EventCategory
+      EventCategory,
     ]),
     WalletModule,
     VirtualAccountModule,
@@ -43,8 +45,15 @@ import { EventCategoriesService } from './event-categories.service';
     AgentOnboardingController,
     SettlementAccountsController,
     EventCategoriesController,
+    OrganizerAnalyticsController,
   ],
-  providers: [EventsService, EventCategoriesService, SettlementAccountsService, AgentOnboardingService],
+  providers: [
+    EventsService,
+    EventCategoriesService,
+    SettlementAccountsService,
+    AgentOnboardingService,
+    OrganizerAnalyticsService,
+  ],
   exports: [EventsService],
 })
 export class EventsModule {}

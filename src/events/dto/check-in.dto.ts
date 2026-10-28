@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -19,6 +20,10 @@ export class CheckInDto {
   @IsOptional()
   @IsString()
   eventId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isOfflineSync?: boolean;
 
   @IsEnum(CheckInMode, { message: 'Mode must be either IN or OUT' })
   @IsOptional()

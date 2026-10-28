@@ -1313,6 +1313,212 @@ export class EventsService {
     return { message: 'Order refunded', orderNumber: order.orderNumber };
   }
 
+  // async checkIn(userId: string, dto: CheckInDto) {
+  //   const parsed = this.verifyQrPayload(dto.qrPayload);
+  //   const targetTicketIds =
+  //     parsed.ticketIds || (parsed.ticketId ? [parsed.ticketId] : []);
+
+  //   if (targetTicketIds.length === 0) {
+  //     throw new BadRequestException(
+  //       'No valid ticket IDs found in scan payload',
+  //     );
+  //   }
+
+  //   const whereCondition: any = { ticketId: In(targetTicketIds) };
+  //   if (parsed.eventId) {
+  //     whereCondition.event = { id: parsed.eventId };
+  //   }
+
+  //   const attendees = await this.attendeeRepo.find({
+  //     where: whereCondition,
+  //     relations: ['event', 'event.organizer', 'tier', 'order'],
+  //   });
+
+  //   if (!attendees || attendees.length === 0) {
+  //     throw new BadRequestException(
+  //       'Ticket(s) not found or invalid for this event',
+  //     );
+  //   }
+
+  //   const primaryEvent = attendees[0].event;
+  //   const now = new Date();
+  //   const eventStartDate = new Date(primaryEvent.startsAt);
+  //   const eventEndDate = new Date(primaryEvent.endsAt);
+  //   const isOrganizer = primaryEvent.organizer.id === userId;
+
+  //   let activeAgent = null;
+  //   if (!isOrganizer) {
+  //     activeAgent = await this.eventAgentRepo.findOne({
+  //       where: { eventId: primaryEvent.id, userId, isActive: true },
+  //     });
+
+  //     if (!activeAgent) {
+  //       throw new ForbiddenException(
+  //         'You are not authorized as a Gate Agent for this event',
+  //       );
+  //     }
+  //   }
+
+  //   const isPrivilegedBypass =
+  //     isOrganizer ||
+  //     (activeAgent &&
+  //       activeAgent.clearanceLevel === SyncClearanceLevel.FULL_SYNC);
+
+  //   const CHECKIN_WINDOW_BUFFER = 12 * 60 * 60 * 1000;
+
+  //   if (
+  //     !isPrivilegedBypass &&
+  //     now.getTime() < eventStartDate.getTime() - CHECKIN_WINDOW_BUFFER
+  //   ) {
+  //     const checkInStartTime = new Date(
+  //       eventStartDate.getTime() - CHECKIN_WINDOW_BUFFER,
+  //     );
+  //     throw new BadRequestException(
+  //       `Check-in opens 12 hours before event start time. Check-in for this event opens on ${checkInStartTime.toLocaleString(
+  //         'en-US',
+  //         {
+  //           dateStyle: 'medium',
+  //           timeStyle: 'short',
+  //         },
+  //       )}.`,
+  //     );
+  //   }
+
+  //   const checkedInResults = [];
+  //   const alreadyCheckedInList = [];
+  //   const isCheckOut = dto.mode === CheckInMode.OUT;
+
+  //   const todayStart = new Date(now);
+  //   todayStart.setHours(0, 0, 0, 0);
+  //   const todayEnd = new Date(now);
+  //   todayEnd.setHours(23, 59, 59, 999);
+  //   const todayStr = now.toISOString().split('T')[0];
+
+  //   for (const attendee of attendees) {
+  //     if (
+  //       attendee.status !== AttendeeStatus.PAID &&
+  //       attendee.status !== AttendeeStatus.CHECKED_IN
+  //     ) {
+  //       continue;
+  //     }
+
+  //     const tier = attendee.tier;
+
+  //     if (isCheckOut) {
+  //       if (!tier.isMultiDay) {
+  //         throw new BadRequestException(
+  //           `Pass "${tier.name}" is a single-day pass and cannot be checked out for re-entry.`,
+  //         );
+  //       }
+
+  //       if (attendee.status !== AttendeeStatus.CHECKED_IN) {
+  //         throw new BadRequestException(
+  //           `Cannot check out attendee "${attendee.guestFullName || 'Guest'}". They are not currently checked in.`,
+  //         );
+  //       }
+  //     } else {
+  //       if (tier.isMultiDay) {
+  //         const validStart = new Date(eventStartDate);
+  //         validStart.setHours(0, 0, 0, 0);
+  //         const bufferedValidStart = new Date(
+  //           validStart.getTime() - CHECKIN_WINDOW_BUFFER,
+  //         );
+  //         const validEnd = new Date(eventEndDate);
+  //         validEnd.setHours(23, 59, 59, 999);
+
+  //         if (now < bufferedValidStart || now > validEnd) {
+  //           throw new BadRequestException(
+  //             `Pass "${tier.name}" is not valid on today's date.`,
+  //           );
+  //         }
+  //       } else if (tier.validDate) {
+  //         const validDayStr = new Date(tier.validDate)
+  //           .toISOString()
+  //           .split('T')[0];
+  //         if (validDayStr !== todayStr) {
+  //           throw new BadRequestException(
+  //             `Pass "${tier.name}" is only valid for ${validDayStr}.`,
+  //           );
+  //         }
+  //       }
+
+  //       const scansTodayCount = await this.checkInRepo.count({
+  //         where: {
+  //           attendee: { id: attendee.id },
+  //           checkedInAt: Between(todayStart, todayEnd),
+  //         },
+  //       });
+
+  //       const maxScansAllowed = tier.maxScansPerDay || 1;
+  //       if (!tier.isMultiDay && maxScansAllowed === 1) {
+  //         if (attendee.status === AttendeeStatus.CHECKED_IN) {
+  //           alreadyCheckedInList.push(attendee);
+  //           continue;
+  //         }
+  //       } else {
+  //         if (scansTodayCount >= maxScansAllowed) {
+  //           throw new ConflictException(
+  //             `Pass has reached its maximum entry limit of ${maxScansAllowed} scan(s) for today.`,
+  //           );
+  //         }
+  //       }
+  //     }
+
+  //     attendee.status = isCheckOut
+  //       ? AttendeeStatus.PAID
+  //       : AttendeeStatus.CHECKED_IN;
+  //     attendee.checkedInAt = dto.checkedInAt ? new Date(dto.checkedInAt) : now;
+  //     attendee.checkedInBy = userId;
+
+  //     await this.attendeeRepo.save(attendee);
+
+  //     await this.checkInRepo.save(
+  //       this.checkInRepo.create({
+  //         attendee,
+  //         mode: dto.mode || CheckInMode.IN,
+  //         checkedInBy: { id: userId },
+  //         checkedInAt: dto.checkedInAt ? new Date(dto.checkedInAt) : now,
+  //       }),
+  //     );
+
+  //     checkedInResults.push({
+  //       ticketId: attendee.ticketId,
+  //       attendeeName: attendee.guestFullName || 'Guest Attendee',
+  //       tierName: tier.name,
+  //       isMultiDay: tier.isMultiDay,
+  //       mode: dto.mode || CheckInMode.IN,
+  //     });
+  //   }
+
+  //   if (checkedInResults.length === 0) {
+  //     if (alreadyCheckedInList.length > 0) {
+  //       const lastChecked = alreadyCheckedInList[0];
+  //       throw new ConflictException(
+  //         `All ${alreadyCheckedInList.length} ticket(s) in this pass were already checked in at ${new Date(
+  //           lastChecked.checkedInAt!,
+  //         ).toLocaleTimeString()}`,
+  //       );
+  //     }
+  //     throw new ConflictException(
+  //       'All tickets in this pass are invalid, pending, or cancelled',
+  //     );
+  //   }
+
+  //   const primary = checkedInResults[0];
+
+  //   return {
+  //     valid: true,
+  //     totalProcessed: checkedInResults.length,
+  //     ticketId: primary.ticketId,
+  //     attendeeName: primary.attendeeName,
+  //     tierName: primary.tierName,
+  //     orderNumber: attendees[0].order?.orderNumber,
+  //     checkedInAt: dto.checkedInAt ? new Date(dto.checkedInAt) : now,
+  //     mode: dto.mode || CheckInMode.IN,
+  //     processedTickets: checkedInResults,
+  //   };
+  // }
+
   async checkIn(userId: string, dto: CheckInDto) {
     const parsed = this.verifyQrPayload(dto.qrPayload);
     const targetTicketIds =
@@ -1341,7 +1547,8 @@ export class EventsService {
     }
 
     const primaryEvent = attendees[0].event;
-    const now = new Date();
+    const scanTime = dto.checkedInAt ? new Date(dto.checkedInAt) : new Date();
+
     const eventStartDate = new Date(primaryEvent.startsAt);
     const eventEndDate = new Date(primaryEvent.endsAt);
     const isOrganizer = primaryEvent.organizer.id === userId;
@@ -1368,7 +1575,7 @@ export class EventsService {
 
     if (
       !isPrivilegedBypass &&
-      now.getTime() < eventStartDate.getTime() - CHECKIN_WINDOW_BUFFER
+      scanTime.getTime() < eventStartDate.getTime() - CHECKIN_WINDOW_BUFFER
     ) {
       const checkInStartTime = new Date(
         eventStartDate.getTime() - CHECKIN_WINDOW_BUFFER,
@@ -1388,11 +1595,11 @@ export class EventsService {
     const alreadyCheckedInList = [];
     const isCheckOut = dto.mode === CheckInMode.OUT;
 
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(now);
-    todayEnd.setHours(23, 59, 59, 999);
-    const todayStr = now.toISOString().split('T')[0];
+    const scanDayStart = new Date(scanTime);
+    scanDayStart.setHours(0, 0, 0, 0);
+    const scanDayEnd = new Date(scanTime);
+    scanDayEnd.setHours(23, 59, 59, 999);
+    const scanDayStr = scanTime.toISOString().split('T')[0];
 
     for (const attendee of attendees) {
       if (
@@ -1426,16 +1633,16 @@ export class EventsService {
           const validEnd = new Date(eventEndDate);
           validEnd.setHours(23, 59, 59, 999);
 
-          if (now < bufferedValidStart || now > validEnd) {
+          if (scanTime < bufferedValidStart || scanTime > validEnd) {
             throw new BadRequestException(
-              `Pass "${tier.name}" is not valid on today's date.`,
+              `Pass "${tier.name}" is not valid on this scan date.`,
             );
           }
         } else if (tier.validDate) {
           const validDayStr = new Date(tier.validDate)
             .toISOString()
             .split('T')[0];
-          if (validDayStr !== todayStr) {
+          if (validDayStr !== scanDayStr) {
             throw new BadRequestException(
               `Pass "${tier.name}" is only valid for ${validDayStr}.`,
             );
@@ -1445,7 +1652,7 @@ export class EventsService {
         const scansTodayCount = await this.checkInRepo.count({
           where: {
             attendee: { id: attendee.id },
-            checkedInAt: Between(todayStart, todayEnd),
+            checkedInAt: Between(scanDayStart, scanDayEnd),
           },
         });
 
@@ -1458,7 +1665,7 @@ export class EventsService {
         } else {
           if (scansTodayCount >= maxScansAllowed) {
             throw new ConflictException(
-              `Pass has reached its maximum entry limit of ${maxScansAllowed} scan(s) for today.`,
+              `Pass has reached its maximum entry limit of ${maxScansAllowed} scan(s) for this day.`,
             );
           }
         }
@@ -1467,7 +1674,8 @@ export class EventsService {
       attendee.status = isCheckOut
         ? AttendeeStatus.PAID
         : AttendeeStatus.CHECKED_IN;
-      attendee.checkedInAt = dto.checkedInAt ? new Date(dto.checkedInAt) : now;
+
+      attendee.checkedInAt = scanTime;
       attendee.checkedInBy = userId;
 
       await this.attendeeRepo.save(attendee);
@@ -1477,7 +1685,8 @@ export class EventsService {
           attendee,
           mode: dto.mode || CheckInMode.IN,
           checkedInBy: { id: userId },
-          checkedInAt: dto.checkedInAt ? new Date(dto.checkedInAt) : now,
+          checkedInAt: scanTime,
+          isOfflineSync: dto.isOfflineSync ?? false,
         }),
       );
 
@@ -1487,6 +1696,7 @@ export class EventsService {
         tierName: tier.name,
         isMultiDay: tier.isMultiDay,
         mode: dto.mode || CheckInMode.IN,
+        isOfflineSync: dto.isOfflineSync ?? false,
       });
     }
 
@@ -1513,8 +1723,9 @@ export class EventsService {
       attendeeName: primary.attendeeName,
       tierName: primary.tierName,
       orderNumber: attendees[0].order?.orderNumber,
-      checkedInAt: dto.checkedInAt ? new Date(dto.checkedInAt) : now,
+      checkedInAt: scanTime,
       mode: dto.mode || CheckInMode.IN,
+      isOfflineSync: dto.isOfflineSync ?? false,
       processedTickets: checkedInResults,
     };
   }
@@ -1528,13 +1739,22 @@ export class EventsService {
       );
     }
 
+    const sortedScans = [...scans].sort((a, b) => {
+      const timeA = a.checkedInAt ? new Date(a.checkedInAt).getTime() : 0;
+      const timeB = b.checkedInAt ? new Date(b.checkedInAt).getTime() : 0;
+      return timeA - timeB;
+    });
+
     const results = [];
 
-    for (const item of scans) {
+    for (const item of sortedScans) {
       try {
         const res = await this.checkIn(userId, {
           qrPayload: item.qrPayload,
           eventId,
+          mode: item.mode,
+          checkedInAt: item.checkedInAt,
+          isOfflineSync: item.isOfflineSync,
         });
         results.push({
           qrPayload: item.qrPayload,

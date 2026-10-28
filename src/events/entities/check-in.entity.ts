@@ -24,7 +24,10 @@ export class CheckIn {
     default: CheckInMode.IN,
   })
   mode!: CheckInMode;
-  
+
+  @Column({ type: 'boolean', default: false })
+  isOfflineSync!: boolean;
+
   @CreateDateColumn()
   checkedInAt!: Date;
 }
