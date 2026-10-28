@@ -6,6 +6,8 @@ import { LoginDto } from "../users/dto/login-user.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { CompleteOnboardingDto } from "./dto/complete-onboarding.dto";
 import { GoogleAuthDto } from "./dto/google-auth.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 
 @Controller('auth')
 @ApiTags('Authentication')
@@ -29,9 +31,26 @@ export class AuthController {
     return this.authService.verifyAndLoginGoogleUser(dto);
   }
 
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(
+      dto.email,
+      dto.token,
+      dto.newPassword,
+    );
+  }
+
   @Post('complete-onboarding')
   @UseGuards(JwtAuthGuard)
-  async completeOnboarding(@Req() req: any, @Body() dto: CompleteOnboardingDto) {
+  async completeOnboarding(
+    @Req() req: any,
+    @Body() dto: CompleteOnboardingDto,
+  ) {
     const userId = req.user?.sub || req.user?.userId;
     return this.authService.updateUserOnboarding(userId, dto);
   }

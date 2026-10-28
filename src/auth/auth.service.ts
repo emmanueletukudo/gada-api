@@ -144,7 +144,7 @@ export class AuthService {
           );
         }
 
-       await this.mailerService
+        await this.mailerService
           .sendWelcomeEmail({
             email: user.email,
             firstName: user.firstName,
@@ -174,6 +174,7 @@ export class AuthService {
       throw new UnauthorizedException('Google authentication failed');
     }
   }
+
   async updateUserOnboarding(
     userId: string,
     dto: CompleteOnboardingDto,
@@ -278,5 +279,56 @@ export class AuthService {
 
   private signToken(userId: string, email: string, role?: string) {
     return this.jwtService.signAsync({ sub: userId, email, role }, {});
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      return {
+        message: 'If the email exists, a password reset code has been sent.',
+      };
+    }
+
+    const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await this.cacheService.set(`password_reset:${email}`, resetToken, 900);
+    await this.mailerService.sendOtpEmail(email, resetToken, user.firstName).catch((err) => {
+      this.logger.error(
+        `Failed to send password reset email to ${email}:`,
+        err,
+      );
+    });
+  
+    return {
+      message: 'If the email exists, a password reset code has been sent.',
+    };
+  }
+
+  async resetPassword(
+    email: string,
+    token: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    const storedToken = await this.cacheService.get(`password_reset:${email}`);
+
+    if (!storedToken || storedToken !== token) {
+      throw new BadRequestException('Invalid or expired password reset code');
+    }
+
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('User account not found');
+    }
+
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
+    await this.usersRepo.update(user.id, { passwordHash });
+    await this.cacheService.del(`password_reset:${email}`);
+
+    this.logger.log(`Password successfully reset for user ${email}`);
+    return {
+      message: 'Password has been reset successfully. You can now log in.',
+    };
   }
 }
