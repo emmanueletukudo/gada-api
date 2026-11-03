@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, DataSource, ILike, In, Repository } from 'typeorm';
+import { Between, DataSource, ILike, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
 import { WalletService } from '../wallet/wallet.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -577,8 +577,11 @@ export class EventsService {
     const page = Math.max(query.page ?? 1, 1);
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
 
+    const activeTimeCondition = MoreThanOrEqual(new Date());
+
     const baseWhere = {
       status: EventStatus.PUBLISHED,
+      endsAt: activeTimeCondition,
       ...(query.category ? { category: { id: query.category } } : {}),
       ...(query.city ? { city: ILike(query.city) } : {}),
     };
