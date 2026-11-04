@@ -75,6 +75,12 @@ export class EventsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('organizer/past/events')
+  organizerPastEvents(@CurrentUser() user: CurrentUserPayload) {
+    return this.eventsService.organizerPastEvents(user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('events/check-in')
   @Roles(UserRole.ORGANIZER, UserRole.GATE_AGENT)
   checkIn(@CurrentUser() user: CurrentUserPayload, @Body() dto: CheckInDto) {

@@ -7,7 +7,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, DataSource, ILike, In, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  Between,
+  DataSource,
+  ILike,
+  In,
+  LessThan,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
 import { WalletService } from '../wallet/wallet.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -629,10 +637,24 @@ export class EventsService {
   }
 
   async organizerEvents(userId: string) {
+    const activeTimeCondition = MoreThanOrEqual(new Date());
     return this.eventRepo.find({
-      where: { organizer: { id: userId } },
+      where: { organizer: { id: userId }, startsAt: activeTimeCondition },
       relations: ['ticketTiers'],
       order: { createdAt: 'DESC' },
+    });
+  }
+
+  async organizerPastEvents(userId: string) {
+    const now = new Date();
+    return this.eventRepo.find({
+      where: {
+        organizer: { id: userId },
+        endsAt: LessThan(now),
+        status: In([EventStatus.PUBLISHED, EventStatus.DRAFT]),
+      },
+      relations: ['ticketTiers'],
+      order: { endsAt: 'DESC' },
     });
   }
 

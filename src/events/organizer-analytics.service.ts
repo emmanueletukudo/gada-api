@@ -75,7 +75,7 @@ export class OrganizerAnalyticsService {
         `SUM(CASE WHEN attendee.status = 'CHECKED_IN' THEN 1 ELSE 0 END)`,
         'checkedIn',
       )
-      .where('tier.event_id = :eventId', { eventId })
+      .where('tier.event.id = :eventId', { eventId })
       .groupBy('tier.id')
       .addGroupBy('tier.name')
       .getRawMany();
@@ -101,9 +101,9 @@ export class OrganizerAnalyticsService {
       .leftJoin('checkin.attendee', 'attendee')
       .select("DATE_TRUNC('hour', checkin.checkedInAt)", 'hourGroup')
       .addSelect('COUNT(checkin.id)', 'scanCount')
-      .where('attendee.event_id = :eventId', { eventId })
+      .where('attendee.eventId = :eventId', { eventId })
       .groupBy("DATE_TRUNC('hour', checkin.checkedInAt)")
-      .orderBy('hourGroup', 'ASC')
+      .orderBy("DATE_TRUNC('hour', checkin.checkedInAt)", 'ASC')
       .getRawMany();
 
     const turnoutHourly = hourlyRaw.map((h) => ({
